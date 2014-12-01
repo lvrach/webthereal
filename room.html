@@ -1,0 +1,59 @@
+<head>
+<style>
+	#conversation {
+		min-height: 300px;
+		height: 60%;
+	}
+	#msgtype {
+		height: 30px;
+	}
+</style>
+</head>
+
+<body>
+<div class="chatarea">
+	<div id="conversation">
+
+	</div>
+	<input id="msgtype" type="text">
+</div>
+</body>
+
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+io = io.connect()
+
+io.emit('ready');
+
+// Listen for the announce event.
+io.on('announce', function(data) {
+    addMesg(data.from, data.message, 20000);
+});
+
+io.on('inbound', function(data) {
+    addMesg(data.from, data.message, 5000);
+});
+
+function addMesg(from, text, timeout) {
+	var msgBox = $('<div>'+from+' : '+text+'</div>')
+	$('#conversation').append(msgBox);
+    window.setTimeout(function () {
+    	msgBox.remove();
+    }, timeout);
+}
+
+function send (text) {
+	io.emit('outbound', {message: text});
+    addMesg('me', text, 5000);
+}
+
+$('#msgtype').keypress(function(e) {
+    if(e.which == 13) {
+        send($(this).val());
+        $(this).val('');
+    }
+});
+
+
+</script>
