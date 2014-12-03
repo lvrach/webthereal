@@ -50,7 +50,13 @@ function send (text) {
 
 $('#msgtype').keypress(function(e) {
     if(e.which == 13) {
-        send($(this).val());
+        var dataMsg = $(this).val();
+
+        if (/http/.test(dataMsg) && /\.(gif|jpg|png)/.test(dataMsg)) {
+            dataMsg = '<img src="' + dataMsg + '">';
+        }
+
+        send(dataMsg);
         $(this).val('');
     }
 });
