@@ -2,10 +2,23 @@
 <style>
 	#conversation {
 		min-height: 300px;
-		height: 60%;
+		height: 80%;
+		width: 70%;
+		overflow: auto;
 	}
 	#msgtype {
-		height: 30px;
+		height: 40px;
+	}
+	.username {
+		font-weight: bold;
+	}
+	.username:after {
+		content: ': '
+	}
+	.media-img {
+		width: 100%
+		height: auto;
+		display: block;
 	}
 </style>
 </head>
@@ -15,6 +28,7 @@
 	<div id="conversation">
 
 	</div>
+	<div id="status"> </div>
 	<input id="msgtype" type="text">
 </div>
 </body>
@@ -26,36 +40,87 @@ io = io.connect()
 
 io.emit('ready');
 
+var msgInbox = [];
+
 // Listen for the announce event.
 io.on('announce', function(data) {
     addMesg(data.from, data.message, 20000);
 });
 
 io.on('inbound', function(data) {
-    addMesg(data.from, data.message, 5000);
+    msgInbox.push(data);
+    $('#status').text(msgInbox.length + ' new msgs');
 });
 
-function addMesg(from, text, timeout) {
-	var msgBox = $('<div>'+from+' : '+text+'</div>')
+function computeDuration(msg) {
+	return 3000 + msg.length * 3;
+}
+
+function popMesg() {
+	var msg = msgInbox.shift();
+	if (!msg) return;
+	addMesg(msg, computeDuration(msg.message));
+	$('#status').text(msgInbox.length + ' new msgs');
+}
+
+function addMesg(msg, timeout) {
+	var msgBox = $('<div></div>');
+	msgBox.text(msg.message);
+	msgBox.prepend($('<span class="username">').text(msg.from));
+
+	if ( msg.media && msg.media.type == 'image') {
+		console.log(msg.media.url);
+		var img = $('<img class="media-img">');
+		img.attr('src', msg.media.url);
+		msgBox.append(img);
+	}
+
+
 	$('#conversation').append(msgBox);
     window.setTimeout(function () {
     	msgBox.remove();
     }, timeout);
 }
 
-function send (text) {
-	io.emit('outbound', {message: text});
-    addMesg('me', text, 5000);
+function detectMedia(text) {
+	var m;
+	m = text.match(/http.*\.(gif|jpg|png)/);
+	if ( m ) {
+		return {
+			type: 'image',
+			url: m[0]
+		}
+	}
+	m = text.match(/http:\/\/9gag.com\/gag\/([A-z0-9_]+)/);
+	if ( m ) {
+		return {
+			type: 'image',
+			url: 'http://img-9gag-ftw.9cache.com/photo/' + m[1] + '_700b.jpg'
+		}
+	}
+	m = text.match(/https?:\/\/imgur.com\/gallery\/([A-z0-9_]+)/);
+	if ( m ) {
+		return {
+			type: 'image',
+			url: 'https://i.imgur.com/' + m[1] + '.jpg'
+		}
+	}
 }
 
+function send (text) {
+	var msg = {
+		message: text,
+		media: detectMedia(text),
+		from: 'me'
+	}
+
+	io.emit('outbound', msg);
+    addMesg(msg, 5000);
+}
 $('#msgtype').keypress(function(e) {
-    if(e.which == 13) {
+	popMesg();
+    if (e.which == 13) {
         var dataMsg = $(this).val();
-
-        if (/http/.test(dataMsg) && /\.(gif|jpg|png)/.test(dataMsg)) {
-            dataMsg = '<img src="' + dataMsg + '">';
-        }
-
         send(dataMsg);
         $(this).val('');
     }

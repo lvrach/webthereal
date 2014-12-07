@@ -41,7 +41,8 @@ app.io.route('outbound', function(req) {
     
     var msg = {
         message: req.data.message,
-        from: req.session.name
+        from: req.session.name,
+        media: req.data.media
     }
 
     req.io.room(req.session.room).broadcast('inbound', msg);
